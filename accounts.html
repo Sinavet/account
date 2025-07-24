@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Управление аккаунтами</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <h1>Управление аккаунтами</h1>
+        <div id="account-list-container">
+            <ul id="account-list">
+                <!-- Аккаунты будут вставлены сюда через JS -->
+            </ul>
+        </div>
+        <button id="add-account-btn" class="btn">➕ Добавить аккаунт</button>
+
+        <div id="form-container" class="hidden">
+            <h2 id="form-title">Добавить аккаунт</h2>
+            <form id="account-form">
+                <input type="hidden" id="original-name">
+
+                <label for="emoji">Эмодзи:</label>
+                <input type="text" id="emoji" required maxlength="2">
+
+                <label for="name">Название:</label>
+                <input type="text" id="name" required>
+
+                <label for="client_id">Client ID:</label>
+                <input type="text" id="client_id" required>
+
+                <label for="client_secret">Client Secret:</label>
+                <input type="password" id="client_secret" required>
+
+                <label for="sub_date">Дата списания тарифа:</label>
+                <input type="date" id="sub_date" required>
+
+                <div class="form-buttons">
+                    <button type="submit" id="save-btn" class="btn">Сохранить</button>
+                    <button type="button" id="cancel-btn" class="btn btn-secondary">Отмена</button>
+                </div>
+            </form>
+            <button id="delete-btn" class="btn btn-danger hidden">Удалить аккаунт</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
