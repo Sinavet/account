@@ -1,51 +1,147 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Управление аккаунтами</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <div id="app">
-        <h1>Управление аккаунтами</h1>
-        <div id="account-list-container">
-            <ul id="account-list">
-                <!-- Аккаунты будут вставлены сюда через JS -->
-            </ul>
-        </div>
-        <button id="add-account-btn" class="btn">➕ Добавить аккаунт</button>
+document.addEventListener('DOMContentLoaded', () => {
+    const tg = window.Telegram.WebApp;
+    tg.expand();
 
-        <div id="form-container" class="hidden">
-            <h2 id="form-title">Добавить аккаунт</h2>
-            <form id="account-form">
-                <input type="hidden" id="original-name">
+    const listContainer = document.getElementById('account-list-container');
+    const accountList = document.getElementById('account-list');
+    const formContainer = document.getElementById('form-container');
+    const accountForm = document.getElementById('account-form');
+    const addAccountBtn = document.getElementById('add-account-btn');
+    const cancelBtn = document.getElementById('cancel-btn');
+    const deleteBtn = document.getElementById('delete-btn');
+    const formTitle = document.getElementById('form-title');
 
-                <label for="emoji">Эмодзи:</label>
-                <input type="text" id="emoji" required maxlength="2">
+    const originalNameInput = document.getElementById('original-name');
+    const emojiInput = document.getElementById('emoji');
+    const nameInput = document.getElementById('name');
+    const clientIdInput = document.getElementById('client_id');
+    const clientSecretInput = document.getElementById('client_secret');
+    const subDateInput = document.getElementById('sub_date');
 
-                <label for="name">Название:</label>
-                <input type="text" id="name" required>
+    let accounts = [];
 
-                <label for="client_id">Client ID:</label>
-                <input type="text" id="client_id" required>
+    function showList() {
+        listContainer.classList.remove('hidden');
+        addAccountBtn.classList.remove('hidden');
+        formContainer.classList.add('hidden');
+    }
 
-                <label for="client_secret">Client Secret:</label>
-                <input type="password" id="client_secret" required>
+    function showForm(mode = 'add', account = null) {
+        listContainer.classList.add('hidden');
+        addAccountBtn.classList.add('hidden');
+        formContainer.classList.remove('hidden');
+        accountForm.reset();
 
-                <label for="sub_date">Дата списания тарифа:</label>
-                <input type="date" id="sub_date" required>
+        if (mode === 'add') {
+            formTitle.textContent = 'Добавить аккаунт';
+            deleteBtn.classList.add('hidden');
+            originalNameInput.value = '';
+        } else if (mode === 'edit' && account) {
+            formTitle.textContent = 'Редактировать аккаунт';
+            deleteBtn.classList.remove('hidden');
 
-                <div class="form-buttons">
-                    <button type="submit" id="save-btn" class="btn">Сохранить</button>
-                    <button type="button" id="cancel-btn" class="btn btn-secondary">Отмена</button>
-                </div>
-            </form>
-            <button id="delete-btn" class="btn btn-danger hidden">Удалить аккаунт</button>
-        </div>
-    </div>
+            originalNameInput.value = account.name;
+            emojiInput.value = account.emoji || '';
+            nameInput.value = account.name || '';
+            clientIdInput.value = account.client_id || '';
+            // Секрет не показываем, но для отправки он нужен.
+            // В реальном приложении его лучше получать с сервера по запросу.
+            // Здесь для простоты мы его не будем отображать, но и не сможем редактировать.
+            clientSecretInput.placeholder = "********";
+            clientSecretInput.required = false; // Не требуем ввод секрета при редактировании
+            subDateInput.value = account.next_subscription_payment_date || '';
+        }
+    }
 
-    <script src="script.js"></script>
-</body>
-</html>
+    function renderAccounts(accountsData) {
+        accountList.innerHTML = '';
+        // Сортируем аккаунты так же, как в боте (упрощенно по имени)
+        accountsData.sort((a, b) => a.name.localeCompare(b.name));
+        accountsData.forEach(acc => {
+            const li = document.createElement('li');
+            li.innerHTML = `<span class="account-name">${acc.emoji} ${acc.name}</span>`;
+            li.addEventListener('click', () => {
+                // Находим полный объект аккаунта, чтобы получить client_id
+                const fullAccount = accounts.find(a => a.name === acc.name);
+                showForm('edit', fullAccount);
+            });
+            accountList.appendChild(li);
+        });
+    }
+
+    function sendDataToBot(action, payload, original_name = null) {
+        const data = { action, payload };
+        if (original_name) {
+            data.original_name = original_name;
+        }
+        tg.sendData(JSON.stringify(data));
+    }
+
+    addAccountBtn.addEventListener('click', () => showForm('add'));
+    cancelBtn.addEventListener('click', () => showList());
+
+    accountForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const payload = {
+            emoji: emojiInput.value,
+            name: nameInput.value,
+            client_id: clientIdInput.value,
+            client_secret: clientSecretInput.value,
+            next_subscription_payment_date: subDateInput.value
+        };
+
+        if (originalNameInput.value) { // Edit mode
+            // Если поле секрета пустое, не отправляем его, чтобы бот не затер старое значение
+            if (!payload.client_secret) {
+                delete payload.client_secret;
+            }
+            sendDataToBot('edit_account', payload, originalNameInput.value);
+        } else { // Add mode
+            sendDataToBot('add_account', payload);
+        }
+    });
+
+    deleteBtn.addEventListener('click', () => {
+        if (confirm(`Вы уверены, что хотите удалить аккаунт "${originalNameInput.value}"?`)) {
+            sendDataToBot('delete_account', { name: originalNameInput.value });
+        }
+    });
+
+    // --- Инициализация ---
+    function initialize() {
+        // Показываем загрузчик
+        accountList.innerHTML = '<li>Загрузка аккаунтов...</li>';
+
+        // !!! ВАЖНО: Замените этот URL на публичный адрес вашего сервера, где запущен бот
+        const API_URL = 'https://your-bot-backend-url.com/api/get_accounts';
+
+        // Запрашиваем данные с бэкенда
+        fetch(API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            // Отправляем initData для проверки подлинности запроса на стороне бота
+            body: JSON.stringify({ initData: tg.initData })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Ошибка сети: ${response.status} ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.error) { throw new Error(`Ошибка API: ${data.error}`); }
+            accounts = data;
+            renderAccounts(accounts);
+            showList();
+        })
+        .catch(error => {
+            console.error("Ошибка при получении данных аккаунтов:", error);
+            tg.showAlert(`Не удалось загрузить данные аккаунтов. Ошибка: ${error.message}. Убедитесь, что в script.js указан верный API_URL.`);
+            accountList.innerHTML = `<li>Ошибка загрузки. Попробуйте снова открыть панель.</li>`;
+        });
+    }
+
+    initialize();
+});
