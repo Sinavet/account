@@ -109,26 +109,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Инициализация ---
     function initialize() {
-        try {
-            const urlParams = new URLSearchParams(window.location.search);
-            const accountsData = urlParams.get('accounts_data');
+        // Показываем загрузчик
+        accountList.innerHTML = '<li>Загрузка аккаунтов...</li>';
 
-            if (accountsData) {
-                // Декодируем и парсим JSON строку
-                const decodedData = decodeURIComponent(accountsData);
-                accounts = JSON.parse(decodedData);
-            } else {
-                // Если данные не переданы, показываем пустой список
-                console.warn("Параметр 'accounts_data' не найден в URL.");
-                accounts = [];
+        // !!! ВАЖНО: Замените этот URL на публичный адрес вашего сервера, где запущен бот
+        const API_URL = 'https://supeer-sssdqascsa.amvera.io/api/get_accounts';
+
+        // Запрашиваем данные с бэкенда
+        fetch(API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            // Отправляем initData для проверки подлинности запроса на стороне бота
+            body: JSON.stringify({ initData: tg.initData })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Ошибка сети: ${response.status} ${response.statusText}`);
             }
-        } catch (error) {
-            console.error("Ошибка при инициализации данных из URL:", error);
-            tg.showAlert("Не удалось загрузить данные аккаунтов. Попробуйте перезапустить Web App.");
-            accounts = [];
-        }
-        renderAccounts(accounts);
-        showList();
+            return response.json();
+        })
+        .then(data => {
+            if (data.error) { throw new Error(`Ошибка API: ${data.error}`); }
+            accounts = data;
+            renderAccounts(accounts);
+            showList();
+        })
+        .catch(error => {
+            console.error("Ошибка при получении данных аккаунтов:", error);
+            tg.showAlert(`Не удалось загрузить данные аккаунтов. Ошибка: ${error.message}. Убедитесь, что в script.js указан верный API_URL.`);
+            accountList.innerHTML = `<li>Ошибка загрузки. Попробуйте снова открыть панель.</li>`;
+        });
     }
 
     initialize();
