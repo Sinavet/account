@@ -109,20 +109,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Инициализация ---
     function initialize() {
-        // ВАЖНО: Для реальной работы нужно реализовать получение данных от бота.
-        // Самый простой способ - передать их в параметре при открытии Web App.
-        // Например, бот формирует URL: https://.../?data=...
-        // А здесь мы читаем: const data = new URLSearchParams(window.location.search).get('data');
-        // Но этот метод небезопасен для секретов.
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const accountsData = urlParams.get('accounts_data');
 
-        // Пока что используем моковые данные для демонстрации.
-        // ВАЖНО: Замените их на реальный механизм получения данных.
-        const mockAccounts = [
-            {"name": "кс Первоуральск", "emoji": "🟡", "client_id": "P0zpW...", "next_subscription_payment_date": "2024-08-15"},
-            {"name": "кс Балаково", "emoji": "🟡", "client_id": "x6RPq...", "next_subscription_payment_date": "2024-07-08"},
-            {"name": "а:м Новосибирск", "emoji": "🔴", "client_id": "ZCh4R...", "next_subscription_payment_date": "2024-08-10"}
-        ];
-        accounts = mockAccounts;
+            if (accountsData) {
+                // Декодируем и парсим JSON строку
+                const decodedData = decodeURIComponent(accountsData);
+                accounts = JSON.parse(decodedData);
+            } else {
+                // Если данные не переданы, показываем пустой список
+                console.warn("Параметр 'accounts_data' не найден в URL.");
+                accounts = [];
+            }
+        } catch (error) {
+            console.error("Ошибка при инициализации данных из URL:", error);
+            tg.showAlert("Не удалось загрузить данные аккаунтов. Попробуйте перезапустить Web App.");
+            accounts = [];
+        }
         renderAccounts(accounts);
         showList();
     }
